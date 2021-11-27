@@ -1,0 +1,30 @@
+openapi: "3.0.2"
+info:
+  title: dorfbusd
+  version: "1.0"
+  license:
+    name: MIT
+    url: https://github.com/rappet/dorfbusd/blob/main/LICENSE
+  contact:
+    name: Raphael Peters
+    email: dorfbusd-openapi@rappet.de
+    url: https://rappet.de/
+  description: |
+
+    Dorfbus managemeng deamon
+servers:
+  []
+  # a localhost server will be added during runtime
+paths:
+  /api/swagger-ui:
+    get:
+      tags:
+        - "human readable"
+      description: "[Swagger-UI](/api/swagger-ui/)"
+      responses:
+        "200":
+          description: OK
+          content:
+            text/html: {}
+components:
+  schemas: {}
