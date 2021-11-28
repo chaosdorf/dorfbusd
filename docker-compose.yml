@@ -1,0 +1,20 @@
+version: "3.9"
+services:
+  rabbitmq:
+    image: rabbitmq:3.9-alpine
+    volumes:
+      - ./docker/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+    ports:
+      # AMQP
+      - 5672:5672
+      # MQTT
+      - 1883:1883
+      # MQTT over TLS
+      - 8883:8883
+      # MQTT over WS
+      - 15675:15675
+      - 15670:15670
+      # Management
+      - 15672:15672
+      # Prometheus
+      - 15692:15692
