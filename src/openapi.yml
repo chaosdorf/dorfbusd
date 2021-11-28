@@ -26,5 +26,50 @@ paths:
           description: OK
           content:
             text/html: {}
+  /api/v1/config:
+    get:
+      tags:
+        - "v1"
+      description: "Modbus device configuration of the deamon"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  devices:
+                    type: object
+                    additionalProperties:
+                      $ref: "#/components/schemas/device"
 components:
-  schemas: {}
+  schemas:
+    device:
+      type: object
+      properties:
+        description:
+          type: string
+        modbus-address:
+          type: integer
+          description: Address of the modbus device
+        coils:
+          type: array
+          description: List of coils the device might have
+          items:
+            $ref: "#/components/schemas/coil"
+    coil:
+      type: object
+      properties:
+        address:
+          description: Address of the coil
+          type: integer
+        description:
+          type: string
+        default-status:
+          $ref: "#/components/schemas/reset-coil-status"
+    reset-coil-status:
+      type: string
+      description: Value a device should be set to if the device is reseted.
+      enum: [on, off, do-not-set]
+      default: do-not-set

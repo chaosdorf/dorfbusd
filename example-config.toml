@@ -1,0 +1,37 @@
+[devices.relais-a]
+description = "First Relais Card"
+modbus-address = 2
+
+[[devices.relais-a.coils]]
+address = 1
+description = "Licht 1"
+default-status = "on"
+
+[[devices.relais-a.coils]]
+address = 2
+description = "Licht 2"
+default-status = "off"
+
+[[devices.relais-a.coils]]
+address = 3
+description = "Licht 3"
+default-status = "do-not-set"
+
+[devices.relais-b]
+description = "First Relais Card"
+modbus-address = 3
+
+[[devices.relais-b.coils]]
+address = 1
+description = "Licht 1"
+default-status = "on"
+
+[[devices.relais-b.coils]]
+address = 2
+description = "Licht 2"
+default-status = "off"
+
+[[devices.relais-b.coils]]
+address = 3
+description = "Licht 3"
+default-status = "do-not-set"

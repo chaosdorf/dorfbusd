@@ -1,5 +1,6 @@
 use std::{net::SocketAddr, str::FromStr, sync::Arc, time::Duration};
 
+use anyhow::Context;
 use axum::{
     extract::OriginalUri,
     handler::Handler,
@@ -8,10 +9,12 @@ use axum::{
     AddExtensionLayer, Router,
 };
 use clap::{crate_authors, crate_name, crate_version};
+use config::Config;
 use http::{Method, StatusCode, Uri};
+use tokio::{fs::File, io::AsyncReadExt};
 use tower::ServiceBuilder;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use tracing::{info, warn};
+use tracing::{info, instrument, warn};
 
 use crate::api::api_routes;
 
@@ -34,6 +37,24 @@ async fn default_404(method: Method, original_uri: OriginalUri) -> impl IntoResp
     )
 }
 
+#[instrument]
+async fn load_config(path: &str) -> anyhow::Result<Config> {
+    let mut config_string = String::new();
+    File::open(path)
+        .await
+        .with_context(|| "Error opening the config file")?
+        .read_to_string(&mut config_string)
+        .await
+        .with_context(|| "Error reading the config file")?;
+    match toml::from_str::<Config>(&config_string) {
+        Ok(config) => {
+            info!(device_count = config.devices.len(), "read config");
+            Ok(config)
+        }
+        Err(err) => Err(err.into()),
+    }
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let params =
@@ -42,6 +63,8 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     info!(include_str!("motd.txt"));
+
+    let config = load_config(&params.config_path).await.unwrap();
 
     info!(
         version = crate_version!(),
@@ -61,6 +84,7 @@ async fn main() -> anyhow::Result<()> {
     let middleware_stack = ServiceBuilder::new()
         .layer(TraceLayer::new_for_http())
         .layer(AddExtensionLayer::new(Arc::new(params.clone())))
+        .layer(AddExtensionLayer::new(Arc::new(config.clone())))
         .layer(cors);
 
     let app = Router::new()
