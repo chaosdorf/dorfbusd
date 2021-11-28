@@ -17,6 +17,7 @@ use crate::api::api_routes;
 
 mod api;
 mod cli;
+mod config;
 mod model;
 mod swagger_ui;
 
