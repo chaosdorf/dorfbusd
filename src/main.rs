@@ -1,41 +1,43 @@
-use actix_cors::Cors;
-use actix_web::{
-    http::header::CONTENT_TYPE,
-    web::{self},
-    App, HttpRequest, HttpResponse, HttpServer, Responder,
-};
+use std::{net::SocketAddr, str::FromStr, sync::Arc, time::Duration};
 
+use axum::{
+    extract::OriginalUri,
+    handler::Handler,
+    response::{Html, IntoResponse, Redirect},
+    routing::get,
+    AddExtensionLayer, Router,
+};
 use clap::{crate_authors, crate_name, crate_version};
+use http::{Method, StatusCode, Uri};
+use tower_http::cors::CorsLayer;
 use tracing::{info, warn};
 
-use crate::api::api_scope;
+use crate::api::api_routes;
 
 mod api;
 mod cli;
 mod model;
 mod swagger_ui;
 
-async fn default_404(request: HttpRequest) -> impl Responder {
+async fn default_404(method: Method, original_uri: OriginalUri) -> impl IntoResponse {
     warn!(
-        method = %request.method(),
-        path = %request.path(),
-        query = %request.query_string(),
+        method = %method,
+        uri = %original_uri.0,
         "HTTP request on unknown path"
     );
 
-    HttpResponse::NotFound()
-        .content_type("text/html")
-        .body(include_str!("resources/404.html"))
+    (
+        StatusCode::NOT_FOUND,
+        Html(include_str!("resources/404.html")),
+    )
 }
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> anyhow::Result<()> {
     let params =
         cli::app().map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))?;
 
     tracing_subscriber::fmt::init();
-
-    let params_data = web::Data::new(params.clone());
 
     info!(include_str!("motd.txt"));
 
@@ -49,21 +51,25 @@ async fn main() -> std::io::Result<()> {
         crate_name!()
     );
 
-    HttpServer::new(move || {
-        let cors = Cors::default()
-            .allow_any_origin()
-            .allowed_methods(vec!["GET"])
-            .allowed_header(CONTENT_TYPE)
-            .max_age(3600);
+    let cors = CorsLayer::new()
+        .allow_methods(vec![Method::GET])
+        .allow_origin(tower_http::cors::any())
+        .max_age(Duration::from_secs(3600));
 
-        App::new()
-            .wrap(cors)
-            .app_data(params_data.clone())
-            .service(api_scope())
-            .default_service(web::route().to(default_404))
-    })
-    .bind(format!("[::]:{}", params.port))?
-    .workers(1)
-    .run()
-    .await
+    let app = Router::new()
+        .route(
+            "/",
+            get(|| async { Redirect::found(Uri::from_static("/api/swagger-ui/")) }),
+        )
+        .nest("/api", api_routes())
+        .fallback(default_404.into_service())
+        .layer(AddExtensionLayer::new(Arc::new(params.clone())))
+        .layer(cors);
+
+    let addr = SocketAddr::from_str(&format!("[::]:{}", params.port))?;
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await?;
+
+    Ok(())
 }

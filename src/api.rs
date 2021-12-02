@@ -1,14 +1,12 @@
-use actix_web::{
-    get,
-    web::{self, Json},
-    Responder, Scope,
-};
+use std::sync::Arc;
+
+use axum::{extract::Extension, response::IntoResponse, routing::get, Json, Router};
+use http::StatusCode;
 use openapiv3::{OpenAPI, Server};
 
-use crate::{cli::Params, swagger_ui::swagger_scope};
+use crate::{cli::Params, swagger_ui::swagger_routes};
 
-#[get("/openapi.json")]
-async fn openapi_json(params: web::Data<Params>) -> impl Responder {
+async fn openapi_json(Extension(params): Extension<Arc<Params>>) -> impl IntoResponse {
     let mut spec: OpenAPI =
         serde_yaml::from_str(include_str!("openapi.yml")).expect("could not parse openapi spec");
 
@@ -18,11 +16,11 @@ async fn openapi_json(params: web::Data<Params>) -> impl Responder {
         ..Default::default()
     });
 
-    Json(spec)
+    (StatusCode::OK, Json(spec))
 }
 
-pub fn api_scope() -> Scope {
-    web::scope("/api")
-        .service(openapi_json)
-        .service(swagger_scope())
+pub fn api_routes() -> Router {
+    Router::new()
+        .route("/openapi.json", get(openapi_json))
+        .nest("/swagger-ui", swagger_routes())
 }
