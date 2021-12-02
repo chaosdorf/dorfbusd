@@ -9,7 +9,8 @@ use axum::{
 };
 use clap::{crate_authors, crate_name, crate_version};
 use http::{Method, StatusCode, Uri};
-use tower_http::cors::CorsLayer;
+use tower::ServiceBuilder;
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::{info, warn};
 
 use crate::api::api_routes;
@@ -56,6 +57,11 @@ async fn main() -> anyhow::Result<()> {
         .allow_origin(tower_http::cors::any())
         .max_age(Duration::from_secs(3600));
 
+    let middleware_stack = ServiceBuilder::new()
+        .layer(TraceLayer::new_for_http())
+        .layer(AddExtensionLayer::new(Arc::new(params.clone())))
+        .layer(cors);
+
     let app = Router::new()
         .route(
             "/",
@@ -63,8 +69,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .nest("/api", api_routes())
         .fallback(default_404.into_service())
-        .layer(AddExtensionLayer::new(Arc::new(params.clone())))
-        .layer(cors);
+        .layer(middleware_stack);
 
     let addr = SocketAddr::from_str(&format!("[::]:{}", params.port))?;
     axum::Server::bind(&addr)
