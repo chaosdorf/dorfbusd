@@ -1,7 +1,7 @@
----
-# cSpell:language de
-# cSpell:words Dorfbuscli Modbus
----
+<!--
+cSpell:language de
+cSpell:words Dorfbuscli Modbus
+-->
 
 # Dorfbuscli
 
