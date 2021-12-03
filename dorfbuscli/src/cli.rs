@@ -24,11 +24,19 @@ pub struct Opts {
 #[derive(Parser)]
 pub enum SubCommand {
     ReadVersion(ReadVersion),
+    SetDeviceAddress(SetDeviceAddress),
 }
 
 #[derive(Parser)]
 #[clap(about = "Read version information of a single modbus device")]
 pub struct ReadVersion {
+    #[clap(about = "ID of the device on the bus")]
+    pub modbus_id: u8,
+}
+
+#[derive(Parser)]
+#[clap(about = "Set the device address of a modbus device")]
+pub struct SetDeviceAddress {
     #[clap(about = "ID of the device on the bus")]
     pub modbus_id: u8,
 }

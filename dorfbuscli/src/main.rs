@@ -1,6 +1,6 @@
-use anyhow::Context;
+use anyhow::{bail, Context};
 use clap::Parser;
-use cli::{ReadVersion, SubCommand};
+use cli::{ReadVersion, SetDeviceAddress, SubCommand};
 use dorfbusext::DorfbusExt;
 use tokio_modbus::{
     client::{rtu, Context as RtuContext},
@@ -22,6 +22,7 @@ async fn run() -> anyhow::Result<()> {
 
     match opts.subcmd {
         SubCommand::ReadVersion(params) => read_version(modbus_ctx, &params).await?,
+        SubCommand::SetDeviceAddress(params) => set_device_address(modbus_ctx, &params).await?,
     }
 
     Ok(())
@@ -44,6 +45,43 @@ async fn read_version(mut modbus_ctx: RtuContext, params: &ReadVersion) -> anyho
     println!(
         "Hardware version of device {} is {}",
         params.modbus_id, hardware_version
+    );
+
+    Ok(())
+}
+
+async fn set_device_address(
+    mut modbus_ctx: RtuContext,
+    params: &SetDeviceAddress,
+) -> anyhow::Result<()> {
+    let slave = Slave(params.modbus_id);
+
+    if slave.is_broadcast() {
+        bail!("{} is a broadcast address!", params.modbus_id);
+    }
+
+    if slave.is_reserved() {
+        bail!("{} is a reserved address!", params.modbus_id);
+    }
+
+    if !slave.is_single_device() {
+        bail!("{} is not a valid device address!", params.modbus_id);
+    }
+
+    modbus_ctx.set_slave(Slave::broadcast());
+    modbus_ctx.set_device_address(params.modbus_id).await?;
+
+    println!(
+        "Device ID was set to {}, test reading version from device....",
+        params.modbus_id
+    );
+
+    modbus_ctx.set_slave(slave);
+    let version = modbus_ctx.read_hardware_version().await?;
+
+    println!(
+        "Got a response, the hardware version is {}, address was set successfully!",
+        version
     );
 
     Ok(())
