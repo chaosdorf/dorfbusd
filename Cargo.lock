@@ -171,6 +171,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "dorfbuscli"
+version = "0.1.0"
+
+[[package]]
 name = "dorfbusd"
 version = "0.1.0"
 dependencies = [
@@ -193,6 +197,10 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
 ]
+
+[[package]]
+name = "dorfbusext"
+version = "0.1.0"
 
 [[package]]
 name = "dtoa"
