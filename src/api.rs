@@ -21,8 +21,8 @@ async fn openapi_json(Extension(params): Extension<Arc<Params>>) -> impl IntoRes
 }
 
 #[instrument(skip_all)]
-async fn config(Extension(config): Extension<Config>) -> impl IntoResponse {
-    Json(config)
+async fn config(Extension(config): Extension<Arc<Config>>) -> impl IntoResponse {
+    Json(config.as_ref().clone())
 }
 
 fn api_v1_routes() -> Router {
