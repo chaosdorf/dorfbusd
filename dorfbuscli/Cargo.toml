@@ -6,3 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0"
+clap = { version = "3.0.0-beta.5" }
+dorfbusext = { path = "../dorfbusext" }
+tokio = { version = "1", features = ["rt", "macros"] }
+tokio-modbus = { version = "0.5", default-features = false, features = ["rtu"] }
+tokio-serial = "5"
