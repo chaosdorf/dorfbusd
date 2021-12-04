@@ -37,12 +37,8 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  devices:
-                    type: object
-                    additionalProperties:
-                      $ref: "#/components/schemas/device"
+                $ref: "#/components/schemas/config"
+
   /api/v1/device-hardware-version/{device-id}:
     get:
       tags:
@@ -106,6 +102,17 @@ paths:
 
 components:
   schemas:
+    config:
+      type: object
+      properties:
+        devices:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/device"
+        coils:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/coil"
     device:
       type: object
       properties:

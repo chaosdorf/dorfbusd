@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -6,27 +6,34 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
     pub devices: BTreeMap<String, Device>,
+    pub coils: BTreeMap<String, Coil>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(rename_all = "kebab-case")]
 pub struct Device {
+    #[serde(default)]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub description: String,
-    pub modbus_address: u16,
-    pub coils: Vec<Coil>,
+    pub modbus_address: u8,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(rename_all = "kebab-case")]
 pub struct Coil {
+    pub device: String,
     pub address: u16,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub description: String,
     pub default_status: ResetCoilStatus,
+    #[serde(default)]
+    pub tags: BTreeSet<String>,
 }
 
 /// Value to which a coil should be set
 /// it the coil/the device/the bus is
-/// resettet.
+/// resetted.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(rename_all = "kebab-case")]
 pub enum ResetCoilStatus {

@@ -2,36 +2,29 @@
 description = "First Relais Card"
 modbus-address = 2
 
-[[devices.relais-a.coils]]
+[coils.relay-1]
+device = "relais-a"
+address = 0
+name = "relay1"
+description = "A relais card"
+default-status = "on"
+tags = ["first-half"]
+
+[coils.relay-2]
+device = "relais-a"
 address = 1
-description = "Licht 1"
+name = "relay2"
+default-status = "on"
+tags = ["first-half"]
+
+[coils.relay-3]
+device = "relais-a"
+address = 2
+name = "relay3"
 default-status = "on"
 
-[[devices.relais-a.coils]]
-address = 2
-description = "Licht 2"
-default-status = "off"
-
-[[devices.relais-a.coils]]
+[coils.relay-4]
+device = "relais-a"
 address = 3
-description = "Licht 3"
-default-status = "do-not-set"
-
-[devices.relais-b]
-description = "First Relais Card"
-modbus-address = 3
-
-[[devices.relais-b.coils]]
-address = 1
-description = "Licht 1"
+name = "relay4"
 default-status = "on"
-
-[[devices.relais-b.coils]]
-address = 2
-description = "Licht 2"
-default-status = "off"
-
-[[devices.relais-b.coils]]
-address = 3
-description = "Licht 3"
-default-status = "do-not-set"
