@@ -11,7 +11,9 @@ use axum::{
 use clap::{crate_authors, crate_name, crate_version};
 use config::Config;
 use http::{Method, StatusCode, Uri};
-use tokio::{fs::File, io::AsyncReadExt};
+use tokio::{fs::File, io::AsyncReadExt, sync::Mutex};
+use tokio_modbus::client::rtu;
+use tokio_serial::SerialStream;
 use tower::ServiceBuilder;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::{info, instrument, warn};
@@ -76,15 +78,18 @@ async fn main() -> anyhow::Result<()> {
         crate_name!()
     );
 
-    let cors = CorsLayer::new()
-        .allow_methods(vec![Method::GET])
-        .allow_origin(tower_http::cors::any())
-        .max_age(Duration::from_secs(3600));
+    let builder = tokio_serial::new("/dev/tty.usbserial-120", 9600);
+    let port = SerialStream::open(&builder).with_context(|| "Error opening the serial device")?;
+
+    let modbus_ctx = rtu::connect(port).await?;
+
+    let cors = CorsLayer::permissive();
 
     let middleware_stack = ServiceBuilder::new()
         .layer(TraceLayer::new_for_http())
         .layer(AddExtensionLayer::new(Arc::new(params.clone())))
         .layer(AddExtensionLayer::new(Arc::new(config.clone())))
+        .layer(AddExtensionLayer::new(Arc::new(Mutex::new(modbus_ctx))))
         .layer(cors);
 
     let app = Router::new()

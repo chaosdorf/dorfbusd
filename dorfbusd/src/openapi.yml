@@ -1,6 +1,6 @@
 openapi: "3.0.2"
 info:
-  title: dorfbusd
+  title: DorfbusD
   version: "1.0"
   license:
     name: MIT
@@ -43,6 +43,67 @@ paths:
                     type: object
                     additionalProperties:
                       $ref: "#/components/schemas/device"
+  /api/v1/device-hardware-version/{device-id}:
+    get:
+      tags:
+        - "v1"
+      description: "Get the hardware version of a device"
+      parameters:
+        - name: device-id
+          in: path
+          description: Modbus ID of the device
+          required: true
+          schema:
+            type: integer
+            format: int8
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hardware-version:
+                    type: integer
+                    default: 104
+                    description: "Hardware version of the device"
+
+  /api/v1/set-coil/{device-id}/{coil}/{activate}:
+    post:
+      tags:
+        - "v1"
+      description: "Set the status of a coil"
+      parameters:
+        - name: device-id
+          in: path
+          description: Modbus ID of the device
+          required: true
+          schema:
+            type: integer
+            format: int8
+        - name: coil
+          in: path
+          description: Number of the coil
+          required: true
+          schema:
+            type: integer
+            format: int16
+            enum: [0, 1, 2, 3]
+        - name: activate
+          in: path
+          description: True if the relay is activated
+          required: true
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+
 components:
   schemas:
     device:
