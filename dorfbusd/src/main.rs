@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, str::FromStr, sync::Arc};
+use std::{net::SocketAddr, str::FromStr};
 
 use anyhow::Context;
 use axum::{
@@ -11,19 +11,20 @@ use axum::{
 use clap::{crate_authors, crate_name, crate_version};
 use config::Config;
 use http::{Method, StatusCode, Uri};
-use tokio::{fs::File, io::AsyncReadExt, sync::Mutex};
+use tokio::{fs::File, io::AsyncReadExt};
 use tokio_modbus::client::rtu;
 use tokio_serial::SerialStream;
 use tower::ServiceBuilder;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::{info, instrument, warn};
 
-use crate::api::api_routes;
+use crate::{api::api_routes, state::State};
 
 mod api;
 mod cli;
 mod config;
 mod model;
+mod state;
 mod swagger_ui;
 
 async fn default_404(method: Method, original_uri: OriginalUri) -> impl IntoResponse {
@@ -83,13 +84,13 @@ async fn main() -> anyhow::Result<()> {
 
     let modbus_ctx = rtu::connect(port).await?;
 
+    let state = State::new(params.clone(), config, modbus_ctx);
+
     let cors = CorsLayer::permissive();
 
     let middleware_stack = ServiceBuilder::new()
         .layer(TraceLayer::new_for_http())
-        .layer(AddExtensionLayer::new(Arc::new(params.clone())))
-        .layer(AddExtensionLayer::new(Arc::new(config.clone())))
-        .layer(AddExtensionLayer::new(Arc::new(Mutex::new(modbus_ctx))))
+        .layer(AddExtensionLayer::new(state))
         .layer(cors);
 
     let app = Router::new()

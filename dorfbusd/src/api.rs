@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use axum::{
     extract::{Extension, Path},
@@ -11,17 +11,14 @@ use http::StatusCode;
 use openapiv3::{OpenAPI, Server};
 use serde_json::json;
 use thiserror::Error;
-use tokio::{
-    sync::Mutex,
-    time::{error::Elapsed, timeout},
-};
+use tokio::time::{error::Elapsed, timeout};
 use tokio_modbus::{
-    client::{Context, Writer},
+    client::Writer,
     prelude::{Slave, SlaveContext},
 };
 use tracing::{info, instrument};
 
-use crate::{cli::Params, config::Config, swagger_ui::swagger_routes};
+use crate::{state::State, swagger_ui::swagger_routes};
 
 #[derive(Error, Debug)]
 pub enum ApiError {
@@ -49,12 +46,12 @@ impl IntoResponse for ApiError {
 
 pub type ApiResult<T> = Result<T, ApiError>;
 
-async fn openapi_json(Extension(params): Extension<Arc<Params>>) -> impl IntoResponse {
+async fn openapi_json(Extension(state): Extension<State>) -> impl IntoResponse {
     let mut spec: OpenAPI =
         serde_yaml::from_str(include_str!("openapi.yml")).expect("could not parse openapi spec");
 
     spec.servers.push(Server {
-        url: format!("http://localhost:{}/", params.port),
+        url: format!("http://localhost:{}/", state.params().port),
         description: Some("localhost".to_owned()),
         ..Default::default()
     });
@@ -63,17 +60,17 @@ async fn openapi_json(Extension(params): Extension<Arc<Params>>) -> impl IntoRes
 }
 
 #[instrument(skip_all)]
-async fn config(Extension(config): Extension<Arc<Config>>) -> impl IntoResponse {
-    Json(config.as_ref().clone())
+async fn config(Extension(state): Extension<State>) -> impl IntoResponse {
+    Json(state.config().clone())
 }
 
-#[instrument(skip(modbus_mutex))]
+#[instrument(skip(state))]
 async fn device_hardware_id(
     Path(device_id): Path<u8>,
-    Extension(modbus_mutex): Extension<Arc<Mutex<Context>>>,
+    Extension(state): Extension<State>,
 ) -> ApiResult<impl IntoResponse> {
     info!("locking modbus device...");
-    let mut modbus = modbus_mutex.lock().await;
+    let mut modbus = state.modbus().lock().await;
 
     modbus.set_slave(Slave(device_id));
     let hardware_version_res =
@@ -82,13 +79,13 @@ async fn device_hardware_id(
     Ok(Json(json!({ "hardware-version": hardware_version })))
 }
 
-#[instrument(skip(modbus_mutex))]
+#[instrument(skip(state))]
 async fn set_coil(
     Path((device_id, coil, status)): Path<(u8, u16, bool)>,
-    Extension(modbus_mutex): Extension<Arc<Mutex<Context>>>,
+    Extension(state): Extension<State>,
 ) -> ApiResult<impl IntoResponse> {
     info!("locking modbus device...");
-    let mut modbus = modbus_mutex.lock().await;
+    let mut modbus = state.modbus().lock().await;
 
     modbus.set_slave(Slave(device_id));
     let coil_status_res = timeout(
