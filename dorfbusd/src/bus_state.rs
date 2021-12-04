@@ -1,6 +1,9 @@
 use std::{
     collections::BTreeMap,
-    sync::{atomic::AtomicBool, Arc},
+    sync::{
+        atomic::{self, AtomicBool},
+        Arc,
+    },
 };
 
 use parking_lot::RwLock;
@@ -26,6 +29,14 @@ pub struct DeviceState {
     pub seen: AtomicBool,
 }
 
+impl DeviceState {
+    /// Reset the state of a device
+    pub fn reset(&self) {
+        *self.version.write() = None;
+        self.seen.store(false, atomic::Ordering::Relaxed);
+    }
+}
+
 #[derive(Serialize, Debug, Default)]
 #[serde(rename_all = "kebab-case")]
 pub struct CoilState {
@@ -36,6 +47,13 @@ pub struct CoilState {
     #[serde(skip)]
     pub device: Arc<DeviceState>,
     pub status: RwLock<CoilValue>,
+}
+
+impl CoilState {
+    /// Reset the state of the coil
+    pub fn reset(&self) {
+        *self.status.write() = CoilValue::Unknown;
+    }
 }
 
 #[derive(Serialize, Debug, Copy, Clone)]
@@ -100,5 +118,15 @@ impl TryFrom<&Config> for BusState {
         let coils = coils_res?;
 
         Ok(BusState { devices, coils })
+    }
+}
+
+impl BusState {
+    /// Reset the state of all devices and coils
+    ///
+    /// Call this after a powerloss on modbus.
+    pub fn reset(&self) {
+        self.devices.values().for_each(|state| state.reset());
+        self.coils.values().for_each(|state| state.reset());
     }
 }
