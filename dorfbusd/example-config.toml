@@ -1,5 +1,9 @@
 [devices.relais-a]
 description = "First Relais Card"
+modbus-address = 1
+
+[devices.relais-b]
+description = "Dummy Relais Card"
 modbus-address = 2
 
 [coils.relay-1]

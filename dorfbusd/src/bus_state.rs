@@ -4,12 +4,23 @@ use std::{
         atomic::{self, AtomicBool},
         Arc,
     },
+    time::Duration,
 };
 
+use dorfbusext::DorfbusExt;
 use parking_lot::RwLock;
 use serde::Serialize;
+use tokio::time::timeout;
+use tokio_modbus::{
+    client::Context as ModbusContext,
+    prelude::{Slave, SlaveContext},
+};
+use tracing::{info, warn};
 
-use crate::config::{self, Config};
+use crate::{
+    config::{self, Config},
+    state::State,
+};
 
 #[derive(Serialize, Debug, Default)]
 #[serde(rename_all = "kebab-case")]
@@ -34,6 +45,30 @@ impl DeviceState {
     pub fn reset(&self) {
         *self.version.write() = None;
         self.seen.store(false, atomic::Ordering::Relaxed);
+    }
+
+    pub async fn check_state_from_device(
+        &self,
+        modbus_context: &mut ModbusContext,
+    ) -> anyhow::Result<()> {
+        modbus_context.set_slave(Slave(self.config.modbus_address));
+        if let Ok(hardware_version_res) = timeout(
+            Duration::from_secs(1),
+            modbus_context.read_hardware_version(),
+        )
+        .await
+        {
+            let hardware_version = hardware_version_res?;
+            *self.version.write() = Some(hardware_version);
+            self.seen.store(true, atomic::Ordering::Relaxed);
+        } else {
+            warn!(
+                self.config.modbus_address,
+                "Could not read hardware version of device"
+            );
+        }
+
+        Ok(())
     }
 }
 
@@ -128,5 +163,16 @@ impl BusState {
     pub fn reset(&self) {
         self.devices.values().for_each(|state| state.reset());
         self.coils.values().for_each(|state| state.reset());
+    }
+
+    pub async fn check_state_from_device(&self, state: &State) -> anyhow::Result<()> {
+        let mut modbus_context = state.modbus().lock().await;
+
+        for (name, device) in self.devices.iter() {
+            info!(%name, device.config.modbus_address, "read hardware version of device");
+            device.check_state_from_device(&mut modbus_context).await?;
+        }
+
+        Ok(())
     }
 }

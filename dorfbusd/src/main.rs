@@ -87,6 +87,8 @@ async fn main() -> anyhow::Result<()> {
 
     let state = State::new(params.clone(), config, modbus_ctx)?;
 
+    state.bus_state().check_state_from_device(&state).await?;
+
     let cors = CorsLayer::permissive();
 
     let middleware_stack = ServiceBuilder::new()
