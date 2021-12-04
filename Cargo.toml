@@ -1,2 +1,5 @@
 [workspace]
 members = ["dorfbuscli", "dorfbusd", "dorfbusext"]
+
+[profile.release]
+lto = 'fat'
