@@ -1,16 +1,9 @@
-use std::{
-    collections::BTreeMap,
-    sync::{atomic::AtomicBool, Arc},
-};
+use std::sync::Arc;
 
-use parking_lot::RwLock;
 use tokio::sync::Mutex as TokioMutex;
 use tokio_modbus::client::Context as ModbusContext;
 
-use crate::{
-    cli::Params,
-    config::{self, Config},
-};
+use crate::{bus_state::BusState, cli::Params, config::Config};
 
 #[derive(Clone)]
 pub struct State {
@@ -18,14 +11,17 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(params: Params, config: Config, modbus: ModbusContext) -> State {
-        State {
+    pub fn new(params: Params, config: Config, modbus: ModbusContext) -> anyhow::Result<State> {
+        let bus_state = Arc::new(BusState::try_from(&config)?);
+
+        Ok(State {
             inner: Arc::new(StateInner {
                 params,
                 config,
                 modbus: TokioMutex::new(modbus),
+                bus_state,
             }),
-        }
+        })
     }
 
     pub fn params(&self) -> &Params {
@@ -39,43 +35,15 @@ impl State {
     pub fn modbus(&self) -> &TokioMutex<ModbusContext> {
         &self.inner.modbus
     }
+
+    pub fn bus_state(&self) -> Arc<BusState> {
+        self.inner.bus_state.clone()
+    }
 }
 
 struct StateInner {
     params: Params,
     config: Config,
     modbus: TokioMutex<ModbusContext>,
-}
-
-#[derive(Debug, Default)]
-pub struct BusState {
-    devices: BTreeMap<String, Arc<DeviceState>>,
-    coils: BTreeMap<String, Arc<CoillState>>,
-}
-
-#[derive(Debug, Default)]
-pub struct DeviceState {
-    pub config: config::Device,
-    pub version: RwLock<Option<u16>>,
-    pub seen: AtomicBool,
-}
-
-#[derive(Debug, Default)]
-pub struct CoillState {
-    pub config: config::Coil,
-    pub device: Arc<DeviceState>,
-    pub status: RwLock<CoilValue>,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum CoilValue {
-    On,
-    Off,
-    Unknown,
-}
-
-impl Default for CoilValue {
-    fn default() -> Self {
-        CoilValue::Unknown
-    }
+    bus_state: Arc<BusState>,
 }

@@ -64,6 +64,11 @@ async fn config(Extension(state): Extension<State>) -> impl IntoResponse {
     Json(state.config().clone())
 }
 
+#[instrument(skip_all)]
+async fn state(Extension(state): Extension<State>) -> impl IntoResponse {
+    Json(state.bus_state())
+}
+
 #[instrument(skip(state))]
 async fn device_hardware_id(
     Path(device_id): Path<u8>,
@@ -100,6 +105,7 @@ async fn set_coil(
 fn api_v1_routes() -> Router {
     Router::new()
         .route("/config", get(config))
+        .route("/state", get(state))
         .route(
             "/device-hardware-version/:device-id",
             get(device_hardware_id),

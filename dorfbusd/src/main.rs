@@ -21,6 +21,7 @@ use tracing::{info, instrument, warn};
 use crate::{api::api_routes, state::State};
 
 mod api;
+mod bus_state;
 mod cli;
 mod config;
 mod model;
@@ -84,7 +85,7 @@ async fn main() -> anyhow::Result<()> {
 
     let modbus_ctx = rtu::connect(port).await?;
 
-    let state = State::new(params.clone(), config, modbus_ctx);
+    let state = State::new(params.clone(), config, modbus_ctx)?;
 
     let cors = CorsLayer::permissive();
 

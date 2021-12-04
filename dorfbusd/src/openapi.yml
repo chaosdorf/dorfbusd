@@ -39,6 +39,17 @@ paths:
               schema:
                 $ref: "#/components/schemas/config"
 
+  /api/v1/state:
+    get:
+      tags:
+        - "v1"
+      description: "Modbus device state"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json: {}
+
   /api/v1/device-hardware-version/{device-id}:
     get:
       tags:
@@ -141,3 +152,30 @@ components:
       description: Value a device should be set to if the device is reseted.
       enum: [on, off, do-not-set]
       default: do-not-set
+    state:
+      type: object
+      properties:
+        devices:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              version:
+                type: integer
+                default: 106
+              seen:
+                type: boolean
+                default: false
+        coils:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              status:
+                $ref: "#/components/schemas/coil-status"
+    coil-status:
+      type: string
+      enum:
+        - "unknown"
+        - "on"
+        - "off"
