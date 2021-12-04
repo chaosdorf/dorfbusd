@@ -16,7 +16,7 @@ async fn run() -> anyhow::Result<()> {
     let opts: Opts = Opts::parse();
 
     let builder = tokio_serial::new(opts.serial_device, opts.boud_rate);
-    let port = SerialStream::open(&builder).with_context(|| "Error opening the serial device")?;
+    let port = SerialStream::open(&builder).with_context(|| "Could not open the serial device")?;
 
     let modbus_ctx = rtu::connect(port).await?;
 

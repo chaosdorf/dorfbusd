@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use axum::{
     extract::{Extension, Path},
     response::IntoResponse,
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use dorfbusext::DorfbusExt;
@@ -107,7 +107,7 @@ fn api_v1_routes() -> Router {
             "/device-hardware-version/:device-id",
             get(device_hardware_id),
         )
-        .route("/set-coil/:device-id/:coil/:value", get(set_coil))
+        .route("/raw/coil/:device-id/:coil/:value", post(set_coil))
 }
 
 pub fn api_routes() -> Router {

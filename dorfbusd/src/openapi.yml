@@ -1,6 +1,6 @@
 openapi: "3.0.2"
 info:
-  title: DorfbusD
+  title: dorfbusd
   version: "1.0"
   license:
     name: MIT
@@ -11,7 +11,7 @@ info:
     url: https://rappet.de/
   description: |
 
-    Dorfbus managemeng deamon
+    Dorfbus management deamon
 servers:
   []
   # a localhost server will be added during runtime
@@ -69,7 +69,7 @@ paths:
                     default: 104
                     description: "Hardware version of the device"
 
-  /api/v1/set-coil/{device-id}/{coil}/{activate}:
+  /api/v1/raw/coil/{device-id}/{coil}/{activate}:
     post:
       tags:
         - "v1"

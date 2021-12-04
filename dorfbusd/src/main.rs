@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, str::FromStr, sync::Arc, time::Duration};
+use std::{net::SocketAddr, str::FromStr, sync::Arc};
 
 use anyhow::Context;
 use axum::{
@@ -78,8 +78,8 @@ async fn main() -> anyhow::Result<()> {
         crate_name!()
     );
 
-    let builder = tokio_serial::new("/dev/tty.usbserial-120", 9600);
-    let port = SerialStream::open(&builder).with_context(|| "Error opening the serial device")?;
+    let builder = tokio_serial::new(&params.serial_path, params.serial_boud);
+    let port = SerialStream::open(&builder).with_context(|| "Could not open the serial device")?;
 
     let modbus_ctx = rtu::connect(port).await?;
 
