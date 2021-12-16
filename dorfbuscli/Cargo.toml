@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
-clap = { version = "3.0.0-beta.5" }
+clap = { version = "3.0.0-rc.7", features = ["derive"] }
 dorfbusext = { path = "../dorfbusext" }
 tokio = { version = "1", features = ["rt", "macros"] }
 tokio-modbus = { version = "0.5", default-features = false, features = ["rtu"] }

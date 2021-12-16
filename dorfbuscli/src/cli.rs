@@ -7,14 +7,14 @@ pub struct Opts {
         short = 'd',
         long,
         default_value = "/dev/ttyUSB0",
-        about = "Path to the serial device"
+        help = "Path to the serial device"
     )]
     pub serial_device: String,
     #[clap(
         short = 'b',
         long,
         default_value = "9600",
-        about = "Boud rate of the serial device"
+        help = "Boud rate of the serial device"
     )]
     pub boud_rate: u32,
     #[clap(subcommand)]
@@ -30,13 +30,13 @@ pub enum SubCommand {
 #[derive(Parser)]
 #[clap(about = "Read version information of a single modbus device")]
 pub struct ReadVersion {
-    #[clap(about = "ID of the device on the bus")]
+    #[clap(help = "ID of the device on the bus")]
     pub modbus_id: u8,
 }
 
 #[derive(Parser)]
 #[clap(about = "Set the device address of a modbus device")]
 pub struct SetDeviceAddress {
-    #[clap(about = "ID of the device on the bus")]
+    #[clap(help = "ID of the device on the bus")]
     pub modbus_id: u8,
 }

@@ -8,7 +8,6 @@ use axum::{
 };
 use dorfbusext::DorfbusExt;
 use http::StatusCode;
-use openapiv3::{OpenAPI, Server};
 use serde_json::json;
 use thiserror::Error;
 use tokio::time::{error::Elapsed, timeout};
@@ -47,10 +46,10 @@ impl IntoResponse for ApiError {
 pub type ApiResult<T> = Result<T, ApiError>;
 
 async fn openapi_json(Extension(state): Extension<State>) -> impl IntoResponse {
-    let mut spec: OpenAPI =
+    let mut spec: openapiv3::OpenAPI =
         serde_yaml::from_str(include_str!("openapi.yml")).expect("could not parse openapi spec");
 
-    spec.servers.push(Server {
+    spec.servers.push(openapiv3::Server {
         url: format!("http://localhost:{}/", state.params().port),
         description: Some("localhost".to_owned()),
         ..Default::default()
