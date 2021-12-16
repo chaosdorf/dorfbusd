@@ -16,7 +16,7 @@ use tokio_modbus::client::rtu;
 use tokio_serial::SerialStream;
 use tower::ServiceBuilder;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use tracing::{info, instrument, warn};
+use tracing::{error, info, instrument, warn};
 
 use crate::{api::api_routes, state::State};
 
@@ -70,7 +70,9 @@ async fn main() -> anyhow::Result<()> {
 
     info!(include_str!("motd.txt"));
 
-    let config = load_config(&params.config_path).await.unwrap();
+    let config = load_config(&params.config_path)
+        .await
+        .context("Could not load config")?;
 
     info!(
         version = crate_version!(),
@@ -83,7 +85,7 @@ async fn main() -> anyhow::Result<()> {
     );
 
     let builder = tokio_serial::new(&params.serial_path, params.serial_boud);
-    let port = SerialStream::open(&builder).with_context(|| "Could not open the serial device")?;
+    let port = SerialStream::open(&builder).context("Could not open the serial device")?;
 
     let modbus_ctx = rtu::connect(port).await?;
 
