@@ -3,7 +3,7 @@ use std::time::Duration;
 use axum::{
     extract::{Extension, Path},
     response::IntoResponse,
-    routing::{get, post},
+    routing::get,
     Json, Router,
 };
 use dorfbusext::DorfbusExt;
@@ -14,13 +14,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
 use tokio::time::{error::Elapsed, timeout};
-use tokio_modbus::{
-    client::Writer,
-    prelude::{Slave, SlaveContext},
-};
+use tokio_modbus::prelude::{Slave, SlaveContext};
 use tracing::{info, instrument};
 
-use crate::{state::State, swagger_ui::swagger_routes};
+use crate::{
+    state::{State, StateError, StateResult},
+    swagger_ui::swagger_routes,
+};
 
 #[derive(Error, Debug)]
 pub enum ApiError {
@@ -47,6 +47,18 @@ impl IntoResponse for ApiError {
     }
 }
 
+impl IntoResponse for StateError {
+    fn into_response(self) -> http::Response<axum::body::BoxBody> {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiErrorResponse {
+                short: "todo".into(),
+                message: self.to_string(),
+            }),
+        )
+            .into_response()
+    }
+}
 /// The response object in case of an error
 #[derive(Debug, Clone, JsonSchema, Serialize, Deserialize)]
 pub struct ApiErrorResponse {
@@ -107,21 +119,24 @@ async fn device_hardware_id(
 }
 
 #[instrument(skip(state))]
-async fn set_coil(
-    Path((device_id, coil, status)): Path<(u8, u16, bool)>,
+async fn get_coil(
+    Path(name): Path<String>,
     Extension(state): Extension<State>,
-) -> ApiResult<impl IntoResponse> {
-    info!("locking modbus device...");
-    let mut modbus = state.modbus().lock().await;
+) -> StateResult<impl IntoResponse> {
+    let coil_update = state.get_coil(&name).await?;
 
-    modbus.set_slave(Slave(device_id));
-    let coil_status_res = timeout(
-        Duration::from_secs(1),
-        modbus.write_single_coil(coil, status),
-    )
-    .await?;
-    let _coil_status = coil_status_res.unwrap();
-    Ok(Json(json!({})))
+    Ok(Json(coil_update))
+}
+
+#[instrument(skip(state))]
+async fn set_coil(
+    Json(enabled): Json<bool>,
+    Path(name): Path<String>,
+    Extension(state): Extension<State>,
+) -> StateResult<impl IntoResponse> {
+    let coil_update = state.set_coil(&name, enabled).await?;
+
+    Ok(Json(coil_update))
 }
 
 fn api_v1_routes() -> Router {
@@ -132,7 +147,7 @@ fn api_v1_routes() -> Router {
             "/device-hardware-version/:device-id",
             get(device_hardware_id),
         )
-        .route("/raw/coil/:device-id/:coil/:value", post(set_coil))
+        .route("/coil/:name", get(get_coil).post(set_coil))
 }
 
 pub fn api_routes() -> Router {

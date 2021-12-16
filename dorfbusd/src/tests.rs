@@ -13,7 +13,7 @@ use pretty_assertions::assert_eq;
 
 use crate::{
     api::ApiErrorResponse,
-    bus_state::{BusState, CoilState, CoilValue, DeviceState},
+    bus_state::{BusState, CoilState, CoilUpdate, CoilValue, DeviceState},
     config::{CoilConfig, Config, DeviceConfig, ResetCoilStatus},
 };
 
@@ -90,7 +90,7 @@ fn check_schemas() {
 
     let mut gen = schmea_gen();
 
-    let ignored_schemas = vec!["CoilUpdate"];
+    let ignored_schemas = vec![];
 
     let derive_schemas: BTreeMap<String, Value> = vec![
         (BusState::schema_name(), BusState::json_schema(&mut gen)),
@@ -114,6 +114,7 @@ fn check_schemas() {
             ApiErrorResponse::schema_name(),
             ApiErrorResponse::json_schema(&mut gen),
         ),
+        (CoilUpdate::schema_name(), CoilUpdate::json_schema(&mut gen)),
     ]
     .into_iter()
     .map(|(name, mut schema)| {

@@ -1,6 +1,6 @@
 use crate::{
     config::{self, Config},
-    state::State,
+    state::{State, StateError, StateResult},
 };
 use dorfbusext::DorfbusExt;
 pub use schemars::JsonSchema;
@@ -16,6 +16,7 @@ use std::{
 use tokio::time::timeout;
 use tokio_modbus::{
     client::Context as ModbusContext,
+    client::Writer,
     prelude::{Slave, SlaveContext},
 };
 use tracing::{info, warn};
@@ -94,6 +95,64 @@ impl CoilState {
     pub fn reset(&self) {
         *self.status.write().unwrap() = CoilValue::Unknown;
     }
+
+    pub fn as_update(&self) -> CoilUpdate {
+        CoilUpdate {
+            name: self.name.clone(),
+            device: self.device.name.clone(),
+            device_id: self.device.config.modbus_address,
+            coil_id: self.config.address,
+            status: *self.status.read().unwrap(),
+        }
+    }
+
+    /// Set and write the state of a coil
+    pub async fn set_coil(
+        &self,
+        modbus_context: &mut ModbusContext,
+        value: bool,
+    ) -> StateResult<CoilUpdate> {
+        modbus_context.set_slave(Slave(self.device.config.modbus_address));
+        match timeout(
+            Duration::from_secs(1),
+            modbus_context.write_single_coil(self.config.address, value),
+        )
+        .await
+        {
+            Ok(Ok(())) => {
+                *self.status.write().unwrap() = CoilValue::from(value);
+                Ok(self.as_update())
+            }
+            Ok(Err(err)) => {
+                *self.status.write().unwrap() = CoilValue::Unknown;
+                Err(err.into())
+            }
+            Err(_) => {
+                *self.status.write().unwrap() = CoilValue::Unknown;
+                Err(StateError::Timeout)
+            }
+        }
+    }
+
+    /// Get the state of a coil
+    pub async fn get_coil(&self) -> StateResult<CoilUpdate> {
+        Ok(self.as_update())
+    }
+}
+
+/// Response to a single coil update
+#[derive(Serialize, Debug, Clone, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub struct CoilUpdate {
+    /// Name of the coil
+    pub name: String,
+    /// Name of the relais card
+    pub device: String,
+    /// Modbus id of the relais card
+    pub device_id: u8,
+    /// Id of the coil on the relais card
+    pub coil_id: u16,
+    status: CoilValue,
 }
 
 #[derive(Serialize, Debug, Copy, Clone, JsonSchema)]
@@ -102,6 +161,16 @@ pub enum CoilValue {
     On,
     Off,
     Unknown,
+}
+
+impl From<bool> for CoilValue {
+    fn from(v: bool) -> Self {
+        if v {
+            CoilValue::On
+        } else {
+            CoilValue::Off
+        }
+    }
 }
 
 impl Default for CoilValue {

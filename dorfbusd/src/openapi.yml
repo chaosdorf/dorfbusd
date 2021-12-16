@@ -119,41 +119,6 @@ paths:
         "400":
           description: Not Found
 
-  /api/v1/raw/coil/{device-id}/{coil}/{activate}:
-    post:
-      tags:
-        - "v1"
-      description: "Set the status of a coil"
-      parameters:
-        - name: device-id
-          in: path
-          description: Modbus ID of the device
-          required: true
-          schema:
-            type: integer
-            format: int8
-        - name: coil
-          in: path
-          description: Number of the coil
-          required: true
-          schema:
-            type: integer
-            format: int16
-            enum: [0, 1, 2, 3]
-        - name: activate
-          in: path
-          description: True if the relay is activated
-          required: true
-          schema:
-            type: boolean
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-
 components:
   schemas:
     # enums and string definition
@@ -260,24 +225,26 @@ components:
       properties:
         name:
           type: string
-          example: "light-1"
           description: "Name of the coil"
         device:
           type: string
-          example: "Relais Card 1"
           description: "Name of the relais card"
         device-id:
           type: integer
-          format: u8
-          example: 1
+          format: uint8
           description: "Modbus id of the relais card"
         coil-id:
           type: integer
-          format: u16
-          example: 0
-          description: "Coil id of the coil on the relais card"
+          format: uint16
+          description: "Id of the coil on the relais card"
         status:
           $ref: "#/components/schemas/CoilValue"
+      required:
+        - name
+        - device
+        - device-id
+        - coil-id
+        - status
 
     ApiErrorResponse:
       description: The response object in case of an error
