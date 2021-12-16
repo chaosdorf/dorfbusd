@@ -91,7 +91,14 @@ async fn main() -> anyhow::Result<()> {
 
     let state = State::new(params.clone(), config, modbus_ctx)?;
 
-    state.bus_state().check_state_from_device(&state).await?;
+    {
+        let state = state.clone();
+        let _join_handle = tokio::spawn(async move {
+            if let Err(err) = state.bus_state().check_state_from_device(&state).await {
+                error!("{:?}", err);
+            }
+        });
+    }
 
     let cors = CorsLayer::permissive();
 
