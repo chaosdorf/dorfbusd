@@ -20,6 +20,7 @@ paths:
     get:
       tags:
         - "human readable"
+      summary: "Swagger-UI"
       description: "[Swagger-UI](/api/swagger-ui/)"
       responses:
         "200":
@@ -30,31 +31,33 @@ paths:
     get:
       tags:
         - "v1"
-      description: "Modbus device configuration of the deamon"
+      summary: "Get the Modbus device configuration of the deamon"
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/config"
+                $ref: "#/components/schemas/Config"
 
   /api/v1/state:
     get:
       tags:
         - "v1"
-      description: "Modbus device state"
+      summary: "Get the Modbus device state"
       responses:
         "200":
           description: OK
           content:
-            application/json: {}
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusState"
 
   /api/v1/device-hardware-version/{device-id}:
     get:
       tags:
         - "v1"
-      description: "Get the hardware version of a device"
+      summary: "Get the hardware version of a device"
       parameters:
         - name: device-id
           in: path
@@ -75,6 +78,46 @@ paths:
                     type: integer
                     default: 104
                     description: "Hardware version of the device"
+
+  /api/v1/coil/{coil-name}:
+    get:
+      tags:
+        - "v1"
+      summary: Get the status of a coil
+      parameters:
+        - name: coil-name
+          in: path
+          description: "Configured name of the coil"
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/CoilStatusResponse"
+        "400":
+          description: Not Found
+    post:
+      tags:
+        - "v1"
+      summary: Set the status of a coil
+      description: This will trigger the hardware.
+      parameters:
+        - name: coil-name
+          in: path
+          description: "Configured name of the coil"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: boolean
+      responses:
+        "200":
+          $ref: "#/components/responses/CoilStatusResponse"
+        "400":
+          description: Not Found
 
   /api/v1/raw/coil/{device-id}/{coil}/{activate}:
     post:
@@ -113,69 +156,146 @@ paths:
 
 components:
   schemas:
-    config:
+    # enums and string definition
+    CoilValue:
+      type: string
+      enum:
+        - "on"
+        - "off"
+        - "unknown"
+
+    ResetCoilStatus:
+      type: string
+      description: Value to which a coil should be set if the coil/the device/the bus is resetted.
+      enum: [on, off, do-not-set]
+      default: do-not-set
+
+    # components regarding the configuration
+    Config:
       type: object
       properties:
         devices:
           type: object
           additionalProperties:
-            $ref: "#/components/schemas/device"
+            $ref: "#/components/schemas/DeviceConfig"
         coils:
           type: object
           additionalProperties:
-            $ref: "#/components/schemas/coil"
-    device:
+            $ref: "#/components/schemas/CoilConfig"
+      required:
+        - coils
+        - devices
+    DeviceConfig:
       type: object
       properties:
         description:
           type: string
         modbus-address:
           type: integer
+          format: uint8
           description: Address of the modbus device
-        coils:
-          type: array
-          description: List of coils the device might have
-          items:
-            $ref: "#/components/schemas/coil"
-    coil:
+      required:
+        - modbus-address
+    CoilConfig:
       type: object
       properties:
         address:
           description: Address of the coil
+          format: uint16
           type: integer
+        device:
+          description: Name of the relais card
+          type: string
+        tags:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+          default: []
         description:
           type: string
         default-status:
-          $ref: "#/components/schemas/reset-coil-status"
-    reset-coil-status:
-      type: string
-      description: Value a device should be set to if the device is reseted.
-      enum: [on, off, do-not-set]
-      default: do-not-set
-    state:
+          $ref: "#/components/schemas/ResetCoilStatus"
+      required:
+        - address
+        - default-status
+        - device
+
+    # Components regarding the state
+    BusState:
       type: object
       properties:
         devices:
           type: object
           additionalProperties:
-            type: object
-            properties:
-              version:
-                type: integer
-                default: 106
-              seen:
-                type: boolean
-                default: false
+            $ref: "#/components/schemas/DeviceState"
         coils:
           type: object
           additionalProperties:
-            type: object
-            properties:
-              status:
-                $ref: "#/components/schemas/coil-status"
-    coil-status:
-      type: string
-      enum:
-        - "unknown"
-        - "on"
-        - "off"
+            $ref: "#/components/schemas/CoilState"
+      required:
+        - coils
+        - devices
+    CoilState:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/CoilValue"
+      required:
+        - status
+    DeviceState:
+      type: object
+      properties:
+        version:
+          default: null
+          type: integer
+          example: 106
+          format: uint16
+        seen:
+          type: boolean
+          default: false
+    CoilUpdate:
+      type: object
+      description: Response to a single coil update
+      properties:
+        name:
+          type: string
+          example: "light-1"
+          description: "Name of the coil"
+        device:
+          type: string
+          example: "Relais Card 1"
+          description: "Name of the relais card"
+        device-id:
+          type: integer
+          format: u8
+          example: 1
+          description: "Modbus id of the relais card"
+        coil-id:
+          type: integer
+          format: u16
+          example: 0
+          description: "Coil id of the coil on the relais card"
+        status:
+          $ref: "#/components/schemas/CoilValue"
+
+    Error:
+      description: An error
+      properties:
+        short:
+          type: string
+          description: A stable textual identifier of the error
+          example: on_fire
+        message:
+          type: string
+          description: A human readable error message
+          example: The device is on fire
+
+  responses:
+    # 200 OK responses
+    CoilStatusResponse:
+      description: Status of a (updated) coil.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CoilUpdate"

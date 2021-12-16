@@ -1,27 +1,35 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+#[cfg(test)]
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(test, derive(JsonSchema))]
 pub struct Config {
-    pub devices: BTreeMap<String, Device>,
-    pub coils: BTreeMap<String, Coil>,
+    pub devices: BTreeMap<String, DeviceConfig>,
+    pub coils: BTreeMap<String, CoilConfig>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(rename_all = "kebab-case")]
-pub struct Device {
+#[cfg_attr(test, derive(JsonSchema))]
+pub struct DeviceConfig {
     #[serde(default)]
     #[serde(skip_serializing_if = "String::is_empty")]
     pub description: String,
+    /// Address of the modbus device
     pub modbus_address: u8,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(rename_all = "kebab-case")]
-pub struct Coil {
+#[cfg_attr(test, derive(JsonSchema))]
+pub struct CoilConfig {
+    /// Name of the relais card
     pub device: String,
+    /// Address of the coil
     pub address: u16,
     #[serde(default)]
     #[serde(skip_serializing_if = "String::is_empty")]
@@ -31,11 +39,10 @@ pub struct Coil {
     pub tags: BTreeSet<String>,
 }
 
-/// Value to which a coil should be set
-/// it the coil/the device/the bus is
-/// resetted.
+/// Value to which a coil should be set if the coil/the device/the bus is resetted.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(test, derive(JsonSchema))]
 pub enum ResetCoilStatus {
     On,
     Off,

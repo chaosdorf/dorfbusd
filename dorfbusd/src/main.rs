@@ -27,6 +27,8 @@ mod config;
 mod model;
 mod state;
 mod swagger_ui;
+#[cfg(test)]
+mod tests;
 
 async fn default_404(method: Method, original_uri: OriginalUri) -> impl IntoResponse {
     warn!(

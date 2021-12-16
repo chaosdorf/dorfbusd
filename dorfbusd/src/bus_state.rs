@@ -1,15 +1,18 @@
+use crate::{
+    config::{self, Config},
+    state::State,
+};
+use dorfbusext::DorfbusExt;
+pub use schemars::JsonSchema;
+use serde::Serialize;
 use std::{
     collections::BTreeMap,
     sync::{
         atomic::{self, AtomicBool},
-        Arc,
+        Arc, RwLock,
     },
     time::Duration,
 };
-
-use dorfbusext::DorfbusExt;
-use parking_lot::RwLock;
-use serde::Serialize;
 use tokio::time::timeout;
 use tokio_modbus::{
     client::Context as ModbusContext,
@@ -17,33 +20,35 @@ use tokio_modbus::{
 };
 use tracing::{info, warn};
 
-use crate::{
-    config::{self, Config},
-    state::State,
-};
-
-#[derive(Serialize, Debug, Default)]
+#[derive(Serialize, Debug, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct BusState {
     pub devices: BTreeMap<String, Arc<DeviceState>>,
     pub coils: BTreeMap<String, Arc<CoilState>>,
 }
 
-#[derive(Serialize, Debug, Default)]
+#[derive(Serialize, Debug, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct DeviceState {
     #[serde(skip)]
     pub name: String,
     #[serde(skip)]
-    pub config: config::Device,
+    pub config: config::DeviceConfig,
+    #[serde(default)]
+    #[schemars(example = "example_106")]
     pub version: RwLock<Option<u16>>,
+    #[serde(default)]
     pub seen: AtomicBool,
+}
+
+fn example_106() -> RwLock<Option<u16>> {
+    Some(106).into()
 }
 
 impl DeviceState {
     /// Reset the state of a device
     pub fn reset(&self) {
-        *self.version.write() = None;
+        *self.version.write().unwrap() = None;
         self.seen.store(false, atomic::Ordering::Relaxed);
     }
 
@@ -59,7 +64,7 @@ impl DeviceState {
         .await
         {
             let hardware_version = hardware_version_res?;
-            *self.version.write() = Some(hardware_version);
+            *self.version.write().unwrap() = Some(hardware_version);
             self.seen.store(true, atomic::Ordering::Relaxed);
         } else {
             warn!(
@@ -72,13 +77,13 @@ impl DeviceState {
     }
 }
 
-#[derive(Serialize, Debug, Default)]
+#[derive(Serialize, Debug, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct CoilState {
     #[serde(skip)]
     pub name: String,
     #[serde(skip)]
-    pub config: config::Coil,
+    pub config: config::CoilConfig,
     #[serde(skip)]
     pub device: Arc<DeviceState>,
     pub status: RwLock<CoilValue>,
@@ -87,11 +92,11 @@ pub struct CoilState {
 impl CoilState {
     /// Reset the state of the coil
     pub fn reset(&self) {
-        *self.status.write() = CoilValue::Unknown;
+        *self.status.write().unwrap() = CoilValue::Unknown;
     }
 }
 
-#[derive(Serialize, Debug, Copy, Clone)]
+#[derive(Serialize, Debug, Copy, Clone, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum CoilValue {
     On,
