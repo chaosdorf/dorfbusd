@@ -26,6 +26,7 @@ use tracing::{info, warn};
 pub struct BusState {
     pub devices: BTreeMap<String, Arc<DeviceState>>,
     pub coils: BTreeMap<String, Arc<CoilState>>,
+    pub tags: BTreeMap<String, Vec<Arc<CoilState>>>,
 }
 
 #[derive(Serialize, Debug, Default, JsonSchema)]
@@ -226,7 +227,19 @@ impl TryFrom<&Config> for BusState {
 
         let coils = coils_res?;
 
-        Ok(BusState { devices, coils })
+        let mut tags = BTreeMap::new();
+        for coil in coils.values() {
+            for tag in &coil.config.tags {
+                let tag_vec: &mut Vec<_> = tags.entry(tag.clone()).or_default();
+                tag_vec.push(coil.clone());
+            }
+        }
+
+        Ok(BusState {
+            devices,
+            coils,
+            tags,
+        })
     }
 }
 

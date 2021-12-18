@@ -198,9 +198,16 @@ components:
           type: object
           additionalProperties:
             $ref: "#/components/schemas/CoilState"
+        tags:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: "#/components/schemas/CoilState"
       required:
         - coils
         - devices
+        - tags
     CoilState:
       type: object
       properties:
