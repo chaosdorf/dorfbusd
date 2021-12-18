@@ -279,8 +279,9 @@ components:
         status:
           $ref: "#/components/schemas/CoilValue"
 
-    Error:
-      description: An error
+    ApiErrorResponse:
+      description: The response object in case of an error
+      type: object
       properties:
         short:
           type: string
@@ -290,6 +291,9 @@ components:
           type: string
           description: A human readable error message
           example: The device is on fire
+      required:
+        - short
+        - message
 
   responses:
     # 200 OK responses

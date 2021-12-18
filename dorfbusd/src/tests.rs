@@ -12,6 +12,7 @@ use serde_json::Value;
 use pretty_assertions::assert_eq;
 
 use crate::{
+    api::ApiErrorResponse,
     bus_state::{BusState, CoilState, CoilValue, DeviceState},
     config::{CoilConfig, Config, DeviceConfig, ResetCoilStatus},
 };
@@ -89,7 +90,7 @@ fn check_schemas() {
 
     let mut gen = schmea_gen();
 
-    let ignored_schemas = vec!["Error", "CoilUpdate"];
+    let ignored_schemas = vec!["CoilUpdate"];
 
     let derive_schemas: BTreeMap<String, Value> = vec![
         (BusState::schema_name(), BusState::json_schema(&mut gen)),
@@ -108,6 +109,10 @@ fn check_schemas() {
         (
             DeviceState::schema_name(),
             DeviceState::json_schema(&mut gen),
+        ),
+        (
+            ApiErrorResponse::schema_name(),
+            ApiErrorResponse::json_schema(&mut gen),
         ),
     ]
     .into_iter()

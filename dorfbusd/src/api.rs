@@ -8,6 +8,9 @@ use axum::{
 };
 use dorfbusext::DorfbusExt;
 use http::StatusCode;
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
 use tokio::time::{error::Elapsed, timeout};
@@ -35,12 +38,32 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> http::Response<axum::body::BoxBody> {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "msg": self.to_string(),
-            })),
+            Json(ApiErrorResponse {
+                short: "todo".into(),
+                message: self.to_string(),
+            }),
         )
             .into_response()
     }
+}
+
+/// The response object in case of an error
+#[derive(Debug, Clone, JsonSchema, Serialize, Deserialize)]
+pub struct ApiErrorResponse {
+    /// A stable textual identifier of the error
+    #[schemars(example = "example_error_short")]
+    pub short: String,
+    /// A human readable error message
+    #[schemars(example = "example_error_message")]
+    pub message: String,
+}
+
+fn example_error_short() -> &'static str {
+    "on_fire"
+}
+
+fn example_error_message() -> &'static str {
+    "The device is on fire"
 }
 
 pub type ApiResult<T> = Result<T, ApiError>;
