@@ -119,6 +119,46 @@ paths:
         "400":
           description: Not Found
 
+  /api/v1/tag/{tag}:
+    get:
+      tags:
+        - "v1"
+      summary: Get the status of all coils with a tag
+      parameters:
+        - name: tag
+          in: path
+          description: "Configured tag"
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/MultipleCoilStatusResponse"
+        "400":
+          description: Not Found
+    post:
+      tags:
+        - "v1"
+      summary: Set the status of all coils with a tag
+      description: This will trigger the hardware.
+      parameters:
+        - name: tag
+          in: path
+          description: "Configured tag"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: boolean
+      responses:
+        "200":
+          $ref: "#/components/responses/MultipleCoilStatusResponse"
+        "400":
+          description: Not Found
+
 components:
   schemas:
     # enums and string definition
@@ -277,3 +317,11 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/CoilUpdate"
+    MultipleCoilStatusResponse:
+      description: Status of a (updated) coil.
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/CoilUpdate"

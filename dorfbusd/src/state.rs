@@ -5,7 +5,7 @@ use tokio_modbus::client::Context as ModbusContext;
 use tracing::info;
 
 use crate::{
-    bus_state::{BusState, CoilUpdate},
+    bus_state::{BusState, CoilState, CoilUpdate},
     cli::Params,
     config::Config,
 };
@@ -68,6 +68,40 @@ impl State {
 
         Ok(coil_update)
     }
+
+    pub async fn get_tag(&self, name: &str) -> StateResult<Vec<CoilUpdate>> {
+        let bus_state = self.bus_state();
+
+        let coil_updates = bus_state
+            .tags
+            .get(name)
+            .ok_or_else(|| StateError::TagNotFound(name.to_string()))?
+            .iter()
+            .map(|coil_state| CoilState::as_update(coil_state))
+            .collect();
+
+        Ok(coil_updates)
+    }
+
+    pub async fn set_tag(&self, name: &str, enabled: bool) -> StateResult<Vec<CoilUpdate>> {
+        info!("locking modbus device...");
+        let mut modbus = self.modbus().lock().await;
+
+        let bus_state = self.bus_state();
+
+        let coils = bus_state
+            .tags
+            .get(name)
+            .ok_or_else(|| StateError::TagNotFound(name.to_string()))?;
+
+        let mut results = Vec::new();
+        for coil_state in coils {
+            results.push(coil_state.set_coil(&mut modbus, enabled).await);
+        }
+
+        let final_result: StateResult<Vec<_>> = results.into_iter().collect();
+        Ok(final_result?)
+    }
 }
 
 struct StateInner {
@@ -81,6 +115,8 @@ struct StateInner {
 pub enum StateError {
     #[error("coil {0:?} not found")]
     CoilNotFound(String),
+    #[error("tag {0:?} not found")]
+    TagNotFound(String),
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error("got timeout on modbus")]

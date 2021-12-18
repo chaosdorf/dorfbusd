@@ -139,6 +139,27 @@ async fn set_coil(
     Ok(Json(coil_update))
 }
 
+#[instrument(skip(state))]
+async fn get_tag(
+    Path(name): Path<String>,
+    Extension(state): Extension<State>,
+) -> StateResult<impl IntoResponse> {
+    let coil_updates = state.get_tag(&name).await?;
+
+    Ok(Json(coil_updates))
+}
+
+#[instrument(skip(state))]
+async fn set_tag(
+    Json(enabled): Json<bool>,
+    Path(name): Path<String>,
+    Extension(state): Extension<State>,
+) -> StateResult<impl IntoResponse> {
+    let coil_updates = state.set_tag(&name, enabled).await?;
+
+    Ok(Json(coil_updates))
+}
+
 fn api_v1_routes() -> Router {
     Router::new()
         .route("/config", get(config))
@@ -148,6 +169,7 @@ fn api_v1_routes() -> Router {
             get(device_hardware_id),
         )
         .route("/coil/:name", get(get_coil).post(set_coil))
+        .route("/tag/:name", get(get_tag).post(set_tag))
 }
 
 pub fn api_routes() -> Router {
