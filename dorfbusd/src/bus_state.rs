@@ -13,7 +13,7 @@ use std::{
     },
     time::Duration,
 };
-use tokio::time::timeout;
+use tokio::{sync::oneshot, time::timeout};
 use tokio_modbus::{
     client::Context as ModbusContext,
     client::Writer,
@@ -79,7 +79,7 @@ impl DeviceState {
     }
 }
 
-#[derive(Serialize, Debug, Default, JsonSchema)]
+#[derive(Serialize, Debug, Default, Clone, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct CoilState {
     #[serde(skip)]
@@ -88,7 +88,7 @@ pub struct CoilState {
     pub config: config::CoilConfig,
     #[serde(skip)]
     pub device: Arc<DeviceState>,
-    pub status: RwLock<CoilValue>,
+    pub status: Arc<RwLock<CoilValue>>,
 }
 
 impl CoilState {
@@ -110,29 +110,42 @@ impl CoilState {
     /// Set and write the state of a coil
     pub async fn set_coil(
         &self,
-        modbus_context: &mut ModbusContext,
+        modbus_context: Arc<tokio::sync::Mutex<ModbusContext>>,
         value: bool,
     ) -> StateResult<CoilUpdate> {
-        modbus_context.set_slave(Slave(self.device.config.modbus_address));
-        match timeout(
-            Duration::from_secs(1),
-            modbus_context.write_single_coil(self.config.address, value),
-        )
-        .await
-        {
-            Ok(Ok(())) => {
-                *self.status.write().unwrap() = CoilValue::from(value);
-                Ok(self.as_update())
-            }
-            Ok(Err(err)) => {
-                *self.status.write().unwrap() = CoilValue::Unknown;
-                Err(err.into())
-            }
-            Err(_) => {
-                *self.status.write().unwrap() = CoilValue::Unknown;
-                Err(StateError::Timeout)
-            }
-        }
+        let (tx, rx) = oneshot::channel();
+        let cloned = self.clone();
+
+        tokio::spawn(async move {
+            let mut modbus_context = modbus_context.lock().await;
+            modbus_context.set_slave(Slave(cloned.device.config.modbus_address));
+
+            info!(value, name = ?cloned.name, "set coil");
+
+            let _tx_result = tx.send(
+                match timeout(
+                    Duration::from_secs(1),
+                    modbus_context.write_single_coil(cloned.config.address, value),
+                )
+                .await
+                {
+                    Ok(Ok(())) => {
+                        *cloned.status.write().unwrap() = CoilValue::from(value);
+                        Ok(cloned.as_update())
+                    }
+                    Ok(Err(err)) => {
+                        *cloned.status.write().unwrap() = CoilValue::Unknown;
+                        Err(err.into())
+                    }
+                    Err(_) => {
+                        *cloned.status.write().unwrap() = CoilValue::Unknown;
+                        Err(StateError::Timeout)
+                    }
+                },
+            );
+        });
+
+        rx.await?
     }
 
     /// Get the state of a coil

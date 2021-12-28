@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use tokio::sync::Mutex as TokioMutex;
+use tokio::sync::{oneshot, Mutex as TokioMutex};
 use tokio_modbus::client::Context as ModbusContext;
-use tracing::info;
+use tracing::{info, instrument};
 
 use crate::{
     bus_state::{BusState, CoilState, CoilUpdate},
@@ -23,7 +23,7 @@ impl State {
             inner: Arc::new(StateInner {
                 params,
                 config,
-                modbus: TokioMutex::new(modbus),
+                modbus: Arc::new(TokioMutex::new(modbus)),
                 bus_state,
             }),
         })
@@ -37,7 +37,7 @@ impl State {
         &self.inner.config
     }
 
-    pub fn modbus(&self) -> &TokioMutex<ModbusContext> {
+    pub fn modbus(&self) -> &Arc<TokioMutex<ModbusContext>> {
         &self.inner.modbus
     }
 
@@ -45,6 +45,7 @@ impl State {
         self.inner.bus_state.clone()
     }
 
+    #[instrument(skip(self))]
     pub async fn get_coil(&self, name: &str) -> StateResult<CoilUpdate> {
         let bus_state = self.bus_state();
         let coil_state = bus_state
@@ -55,20 +56,22 @@ impl State {
         Ok(coil_update)
     }
 
+    #[instrument(skip(self))]
     pub async fn set_coil(&self, name: &str, enabled: bool) -> StateResult<CoilUpdate> {
         info!("locking modbus device...");
-        let mut modbus = self.modbus().lock().await;
+        let modbus = self.modbus();
 
         let bus_state = self.bus_state();
         let coil_state = bus_state
             .coils
             .get(name)
             .ok_or_else(|| StateError::CoilNotFound(name.to_string()))?;
-        let coil_update = coil_state.set_coil(&mut modbus, enabled).await?;
+        let coil_update = coil_state.set_coil(modbus.clone(), enabled).await?;
 
         Ok(coil_update)
     }
 
+    #[instrument(skip(self))]
     pub async fn get_tag(&self, name: &str) -> StateResult<Vec<CoilUpdate>> {
         let bus_state = self.bus_state();
 
@@ -83,9 +86,10 @@ impl State {
         Ok(coil_updates)
     }
 
+    #[instrument(skip(self))]
     pub async fn set_tag(&self, name: &str, enabled: bool) -> StateResult<Vec<CoilUpdate>> {
         info!("locking modbus device...");
-        let mut modbus = self.modbus().lock().await;
+        let modbus = self.modbus();
 
         let bus_state = self.bus_state();
 
@@ -96,18 +100,18 @@ impl State {
 
         let mut results = Vec::new();
         for coil_state in coils {
-            results.push(coil_state.set_coil(&mut modbus, enabled).await);
+            results.push(coil_state.set_coil(modbus.clone(), enabled).await);
         }
 
         let final_result: StateResult<Vec<_>> = results.into_iter().collect();
-        Ok(final_result?)
+        final_result
     }
 }
 
 struct StateInner {
     params: Params,
     config: Config,
-    modbus: TokioMutex<ModbusContext>,
+    modbus: Arc<TokioMutex<ModbusContext>>,
     bus_state: Arc<BusState>,
 }
 
@@ -121,6 +125,8 @@ pub enum StateError {
     Io(#[from] std::io::Error),
     #[error("got timeout on modbus")]
     Timeout,
+    #[error(transparent)]
+    OneshotRecvError(#[from] oneshot::error::RecvError),
 }
 
 pub type StateResult<T> = Result<T, StateError>;
