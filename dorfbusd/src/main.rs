@@ -63,10 +63,10 @@ async fn load_config(path: &str) -> anyhow::Result<Config> {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
+
     let params =
         cli::app().map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))?;
-
-    tracing_subscriber::fmt::init();
 
     info!(include_str!("motd.txt"));
 
