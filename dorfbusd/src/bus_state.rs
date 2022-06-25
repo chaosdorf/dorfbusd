@@ -40,7 +40,7 @@ pub struct DeviceState {
     #[schemars(example = "example_106")]
     pub version: RwLock<Option<u16>>,
     #[serde(default)]
-    pub seen: AtomicBool,
+    pub seen: RwLock<bool>,
 }
 
 fn example_106() -> RwLock<Option<u16>> {
@@ -51,7 +51,7 @@ impl DeviceState {
     /// Reset the state of a device
     pub fn reset(&self) {
         *self.version.write().unwrap() = None;
-        self.seen.store(false, atomic::Ordering::Relaxed);
+        *self.seen.write().unwrap() = false
     }
 
     pub async fn check_state_from_device(
@@ -67,7 +67,7 @@ impl DeviceState {
         {
             let hardware_version = hardware_version_res?;
             *self.version.write().unwrap() = Some(hardware_version);
-            self.seen.store(true, atomic::Ordering::Relaxed);
+            *self.seen.write().unwrap() = true;
         } else {
             warn!(
                 self.config.modbus_address,
@@ -194,7 +194,7 @@ impl TryFrom<&Config> for BusState {
                         name: name.clone(),
                         config: device.clone(),
                         version: RwLock::new(None),
-                        seen: AtomicBool::from(false),
+                        seen: RwLock::new(false),
                     }),
                 )
             })
